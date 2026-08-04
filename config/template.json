@@ -1,0 +1,14 @@
+{
+  "columns": {
+    "employee_name": "员工姓名",
+    "employee_phone": "员工手机号",
+    "employee_wechat_nickname": "员工微信昵称",
+    "employee_wechat_id": "员工微信号",
+    "group_name": "群名称",
+    "message_type": "消息类型",
+    "sender": "发送人",
+    "content": "消息内容",
+    "chat_time": "聊天时间"
+  },
+  "ignored_columns": ["群备注"]
+}

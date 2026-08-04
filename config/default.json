@@ -1,0 +1,37 @@
+{
+  "template_path": "config/template.json",
+  "message_types": {
+    "include": ["文本消息", "图片消息", "引用消息"],
+    "ignore": ["系统消息", "撤回消息", "撤回系统消息", "拍一拍消息", "语音消息"]
+  },
+  "chunk": {
+    "size": 50,
+    "overlap": 15,
+    "auto_shrink": true
+  },
+  "candidate_issues": {
+    "lookback_days": 4,
+    "same_group_only": true,
+    "include_long_open_issues": false,
+    "max_candidates": 80,
+    "known_issue_budget_tokens": 6000,
+    "compression_levels": ["L1", "L2", "L3"]
+  },
+  "context_budget": {
+    "max_context_tokens": 128000,
+    "reserve_output_tokens": 8000,
+    "reserve_system_tokens": 4000,
+    "reserve_chunk_tokens": 60000
+  },
+  "llm": {
+    "base_url_env": "OPENAI_BASE_URL",
+    "api_key_env": "OPENAI_API_KEY",
+    "model_env": "OPENAI_MODEL",
+    "temperature": 0,
+    "requires_vision": true
+  },
+  "output": {
+    "date_tree": true,
+    "filename_prefix": "问题列表"
+  }
+}
