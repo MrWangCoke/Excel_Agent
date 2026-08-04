@@ -7,7 +7,7 @@ from pathlib import Path
 from .config import PROJECT_ROOT, load_config
 from .excel.reader import ExcelReadError
 from .excel.validator import ExcelValidationError
-from .pipeline import parse_excel_input
+from .pipeline import run_steps_1_to_3
 
 DEFAULT_INPUT_PATH = PROJECT_ROOT / "data"
 DEFAULT_OUTPUT_PATH = PROJECT_ROOT / "output"
@@ -80,6 +80,11 @@ def print_parse_summary(summary: dict[str, object]) -> None:
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 
+def print_preprocess_reports(reports: list[dict[str, object]]) -> None:
+    print("消息预处理报告")
+    print(json.dumps(reports, ensure_ascii=False, indent=2))
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -92,8 +97,9 @@ def main(argv: list[str] | None = None) -> int:
         print_startup_summary(args)
 
         config = load_config(args.config)
-        summary = parse_excel_input(input_path, config)[1]
+        _, summary, _, preprocess_reports = run_steps_1_to_3(input_path, config)
         print_parse_summary(summary.to_dict())
+        print_preprocess_reports([report.to_dict() for report in preprocess_reports])
     except (
         ExcelReadError,
         ExcelValidationError,
@@ -105,5 +111,5 @@ def main(argv: list[str] | None = None) -> int:
         print(f"启动失败：{exc}")
         return 1
 
-    print("步骤 2 Excel 精准解析与校验已完成；后续消息预处理、切分、LLM 提取逻辑尚未实现。")
+    print("步骤 3 消息预处理已完成；已严格按消息类型保存文本、图片、引用消息到 .cache/<run_id>/effective_messages.jsonl。")
     return 0

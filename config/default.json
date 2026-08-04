@@ -1,7 +1,7 @@
 {
   "template_path": "config/template.json",
   "message_types": {
-    "include": ["文本消息", "图片消息", "引用消息"],
+    "include": ["文本", "图片", "引用消息"],
     "ignore": ["系统消息", "撤回消息", "撤回系统消息", "拍一拍消息", "语音消息"]
   },
   "chunk": {

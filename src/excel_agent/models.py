@@ -20,6 +20,21 @@ class RawMessage:
     content_raw: str
     chat_time: datetime
 
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "row_id": self.row_id,
+            "source_file": self.source_file,
+            "employee_name": self.employee_name,
+            "employee_phone": self.employee_phone,
+            "employee_wechat_nickname": self.employee_wechat_nickname,
+            "employee_wechat_id": self.employee_wechat_id,
+            "group_name": self.group_name,
+            "message_type": self.message_type,
+            "sender_raw": self.sender_raw,
+            "content_raw": self.content_raw,
+            "chat_time": self.chat_time.isoformat(sep=" "),
+        }
+
 
 @dataclass(frozen=True)
 class ExcelTemplate:
