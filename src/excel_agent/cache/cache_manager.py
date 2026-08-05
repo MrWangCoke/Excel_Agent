@@ -21,3 +21,11 @@ def get_effective_messages_path(source_file: Path, cache_root: Path = CACHE_ROOT
 
 def get_preprocess_report_path(source_file: Path, cache_root: Path = CACHE_ROOT) -> Path:
     return get_run_dir(source_file, cache_root) / "preprocess_report.json"
+
+
+def get_chunks_dir(source_file: Path, cache_root: Path = CACHE_ROOT) -> Path:
+    return get_run_dir(source_file, cache_root) / "chunks"
+
+
+def get_chunks_manifest_path(source_file: Path, cache_root: Path = CACHE_ROOT) -> Path:
+    return get_run_dir(source_file, cache_root) / "chunks_manifest.json"

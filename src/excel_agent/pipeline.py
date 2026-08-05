@@ -7,7 +7,12 @@ from excel_agent.cache.cache_manager import (
     get_preprocess_report_path,
 )
 from excel_agent.cache.serializers import write_json, write_jsonl
-from excel_agent.config import AppConfig, PROJECT_ROOT, load_json
+from excel_agent.chunking.chunker import (
+    ChunkBuildResult,
+    build_chunk_config,
+    build_chunks_for_source,
+)
+from excel_agent.config import PROJECT_ROOT, AppConfig, load_json
 from excel_agent.excel.reader import read_excel_input
 from excel_agent.excel.validator import build_parse_summary
 from excel_agent.models import ExcelTemplate, FileParseResult, ParseSummary, RawMessage
@@ -63,6 +68,27 @@ def save_effective_messages(
     return messages_by_run, reports
 
 
+def build_message_chunks(
+    results: list[FileParseResult],
+    messages_by_run: dict[str, list[RawMessage]],
+    config: AppConfig,
+) -> list[ChunkBuildResult]:
+    chunk_config = build_chunk_config(config.data)
+    chunk_results: list[ChunkBuildResult] = []
+
+    for result in results:
+        effective_messages = messages_by_run[result.source_file.stem]
+        chunk_results.append(
+            build_chunks_for_source(
+                source_file=result.source_file,
+                messages=effective_messages,
+                config=chunk_config,
+            )
+        )
+
+    return chunk_results
+
+
 def run_steps_1_to_3(
     input_path: Path,
     config: AppConfig,
@@ -70,3 +96,18 @@ def run_steps_1_to_3(
     results, summary = parse_excel_input(input_path, config)
     effective_messages, reports = save_effective_messages(results, config)
     return results, summary, effective_messages, reports
+
+
+def run_steps_1_to_4(
+    input_path: Path,
+    config: AppConfig,
+) -> tuple[
+    list[FileParseResult],
+    ParseSummary,
+    dict[str, list[RawMessage]],
+    list[PreprocessReport],
+    list[ChunkBuildResult],
+]:
+    results, summary, effective_messages, preprocess_reports = run_steps_1_to_3(input_path, config)
+    chunk_results = build_message_chunks(results, effective_messages, config)
+    return results, summary, effective_messages, preprocess_reports, chunk_results

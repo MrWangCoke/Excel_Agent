@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 
 
 @dataclass(frozen=True)
@@ -19,6 +19,22 @@ class RawMessage:
     sender_raw: str
     content_raw: str
     chat_time: datetime
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Self:
+        return cls(
+            row_id=int(data["row_id"]),
+            source_file=str(data["source_file"]),
+            employee_name=str(data.get("employee_name", "")),
+            employee_phone=str(data.get("employee_phone", "")),
+            employee_wechat_nickname=str(data.get("employee_wechat_nickname", "")),
+            employee_wechat_id=str(data.get("employee_wechat_id", "")),
+            group_name=str(data.get("group_name", "")),
+            message_type=str(data.get("message_type", "")),
+            sender_raw=str(data.get("sender_raw", "")),
+            content_raw=str(data.get("content_raw", "")),
+            chat_time=datetime.fromisoformat(str(data["chat_time"])),
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {

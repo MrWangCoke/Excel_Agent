@@ -7,7 +7,7 @@ from pathlib import Path
 from .config import PROJECT_ROOT, load_config
 from .excel.reader import ExcelReadError
 from .excel.validator import ExcelValidationError
-from .pipeline import run_steps_1_to_3
+from .pipeline import run_steps_1_to_4
 
 DEFAULT_INPUT_PATH = PROJECT_ROOT / "data"
 DEFAULT_OUTPUT_PATH = PROJECT_ROOT / "output"
@@ -85,6 +85,11 @@ def print_preprocess_reports(reports: list[dict[str, object]]) -> None:
     print(json.dumps(reports, ensure_ascii=False, indent=2))
 
 
+def print_chunk_reports(reports: list[dict[str, object]]) -> None:
+    print("消息切块报告")
+    print(json.dumps(reports, ensure_ascii=False, indent=2))
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -97,9 +102,23 @@ def main(argv: list[str] | None = None) -> int:
         print_startup_summary(args)
 
         config = load_config(args.config)
-        _, summary, _, preprocess_reports = run_steps_1_to_3(input_path, config)
+        _, summary, _, preprocess_reports, chunk_results = run_steps_1_to_4(input_path, config)
         print_parse_summary(summary.to_dict())
         print_preprocess_reports([report.to_dict() for report in preprocess_reports])
+        print_chunk_reports(
+            [
+                {
+                    "source_file": result.source_file,
+                    "run_id": result.run_id,
+                    "manifest_path": str(result.manifest_path),
+                    "total_effective_messages": result.total_effective_messages,
+                    "total_chunks": result.total_chunks,
+                    "total_chunk_message_instances": result.total_chunk_message_instances,
+                    "total_overlap_messages": result.total_overlap_messages,
+                }
+                for result in chunk_results
+            ]
+        )
     except (
         ExcelReadError,
         ExcelValidationError,
@@ -111,5 +130,5 @@ def main(argv: list[str] | None = None) -> int:
         print(f"启动失败：{exc}")
         return 1
 
-    print("步骤 3 消息预处理已完成；已严格按消息类型保存文本、图片、引用消息到 .cache/<run_id>/effective_messages.jsonl。")
+    print("步骤 4 消息切块已完成；chunks 和 chunks_manifest.json 已写入 .cache/<run_id>/。")
     return 0
