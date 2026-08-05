@@ -6,6 +6,12 @@ from pathlib import Path
 from typing import Any
 
 
+def read_json(path: Path) -> dict[str, Any]:
+    with path.open("r", encoding="utf-8") as file:
+        data = json.load(file)
+    return data if isinstance(data, dict) else {}
+
+
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     with path.open("r", encoding="utf-8") as file:

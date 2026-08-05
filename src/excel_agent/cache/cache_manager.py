@@ -19,6 +19,18 @@ def get_effective_messages_path(source_file: Path, cache_root: Path = CACHE_ROOT
     return get_run_dir(source_file, cache_root) / "effective_messages.jsonl"
 
 
+def get_deduped_messages_path(source_file: Path, cache_root: Path = CACHE_ROOT) -> Path:
+    return get_run_dir(source_file, cache_root) / "deduped_messages.jsonl"
+
+
+def get_duplicate_messages_path(source_file: Path, cache_root: Path = CACHE_ROOT) -> Path:
+    return get_run_dir(source_file, cache_root) / "duplicate_messages.jsonl"
+
+
+def get_dedupe_report_path(source_file: Path, cache_root: Path = CACHE_ROOT) -> Path:
+    return get_run_dir(source_file, cache_root) / "dedupe_report.json"
+
+
 def get_preprocess_report_path(source_file: Path, cache_root: Path = CACHE_ROOT) -> Path:
     return get_run_dir(source_file, cache_root) / "preprocess_report.json"
 
@@ -29,3 +41,23 @@ def get_chunks_dir(source_file: Path, cache_root: Path = CACHE_ROOT) -> Path:
 
 def get_chunks_manifest_path(source_file: Path, cache_root: Path = CACHE_ROOT) -> Path:
     return get_run_dir(source_file, cache_root) / "chunks_manifest.json"
+
+
+def get_issues_dir(source_file: Path, cache_root: Path = CACHE_ROOT) -> Path:
+    return get_run_dir(source_file, cache_root) / "issues"
+
+
+def get_issue_store_path(source_file: Path, cache_root: Path = CACHE_ROOT) -> Path:
+    return get_issues_dir(source_file, cache_root) / "issue_store.json"
+
+
+def get_issue_index_path(source_file: Path, cache_root: Path = CACHE_ROOT) -> Path:
+    return get_issues_dir(source_file, cache_root) / "issue_index.json"
+
+
+def get_chunk_candidates_dir(source_file: Path, cache_root: Path = CACHE_ROOT) -> Path:
+    return get_run_dir(source_file, cache_root) / "chunk_candidates"
+
+
+def get_candidates_manifest_path(source_file: Path, cache_root: Path = CACHE_ROOT) -> Path:
+    return get_run_dir(source_file, cache_root) / "candidates_manifest.json"

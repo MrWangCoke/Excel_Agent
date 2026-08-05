@@ -10,7 +10,7 @@
     "auto_shrink": true
   },
   "candidate_issues": {
-    "lookback_days": 4,
+    "lookback_days": 2,
     "same_group_only": true,
     "include_long_open_issues": false,
     "max_candidates": 80,

@@ -7,7 +7,7 @@ from pathlib import Path
 from .config import PROJECT_ROOT, load_config
 from .excel.reader import ExcelReadError
 from .excel.validator import ExcelValidationError
-from .pipeline import run_steps_1_to_4
+from .pipeline import run_steps_1_to_5
 
 DEFAULT_INPUT_PATH = PROJECT_ROOT / "data"
 DEFAULT_OUTPUT_PATH = PROJECT_ROOT / "output"
@@ -85,9 +85,19 @@ def print_preprocess_reports(reports: list[dict[str, object]]) -> None:
     print(json.dumps(reports, ensure_ascii=False, indent=2))
 
 
+def print_dedupe_reports(reports: list[dict[str, object]]) -> None:
+    print("消息去重报告")
+    print(json.dumps(reports, ensure_ascii=False, indent=2))
+
+
 def print_chunk_reports(reports: list[dict[str, object]]) -> None:
     print("消息切块报告")
     print(json.dumps(reports, ensure_ascii=False, indent=2))
+
+
+def print_candidate_report(report: dict[str, object]) -> None:
+    print("候选问题注入报告")
+    print(json.dumps(report, ensure_ascii=False, indent=2))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -102,9 +112,19 @@ def main(argv: list[str] | None = None) -> int:
         print_startup_summary(args)
 
         config = load_config(args.config)
-        _, summary, _, preprocess_reports, chunk_results = run_steps_1_to_4(input_path, config)
+        (
+            _,
+            summary,
+            _,
+            preprocess_reports,
+            _,
+            dedupe_reports,
+            chunk_results,
+            candidate_selections,
+        ) = run_steps_1_to_5(input_path, config)
         print_parse_summary(summary.to_dict())
         print_preprocess_reports([report.to_dict() for report in preprocess_reports])
+        print_dedupe_reports([report.to_dict() for report in dedupe_reports])
         print_chunk_reports(
             [
                 {
@@ -119,6 +139,13 @@ def main(argv: list[str] | None = None) -> int:
                 for result in chunk_results
             ]
         )
+        print_candidate_report(
+            {
+                "total_chunks": len(candidate_selections),
+                "total_candidates": sum(len(selection.candidates) for selection in candidate_selections),
+                "total_dropped_candidates": sum(selection.dropped_count for selection in candidate_selections),
+            }
+        )
     except (
         ExcelReadError,
         ExcelValidationError,
@@ -130,5 +157,5 @@ def main(argv: list[str] | None = None) -> int:
         print(f"启动失败：{exc}")
         return 1
 
-    print("步骤 4 消息切块已完成；chunks 和 chunks_manifest.json 已写入 .cache/<run_id>/。")
+    print("步骤 5 候选问题注入控制已完成；deduped_messages、issue_store、issue_index 和 chunk_candidates 已写入 .cache/<run_id>/。")
     return 0
