@@ -26,23 +26,23 @@ EMPLOYEE_FIELDS = {
 }
 
 
-# 取某字段并去空格
+# 获取消息指定字段的字符串值并清理首尾空白。
 def get_field(message: RawMessage, field_name: str) -> str:
     return str(getattr(message, field_name)).strip()
 
 
-#去重并排序
+# 去除空值和重复项后返回排序好的字符串列表。
 def unique_sorted(values: Iterable[str]) -> list[str]:
     return sorted({value for value in values if value})
 
 
-#统计各消息类型数量
+# 统计消息列表中每种非空消息类型的数量。
 def count_message_types(messages: list[RawMessage]) -> dict[str, int]:
     counter = Counter(message.message_type for message in messages if message.message_type)
     return dict(sorted(counter.items()))
 
 
-# 把多个文件的空值统计加起来
+# 汇总多个 Excel 解析结果中各字段的空值数量。
 def aggregate_empty_counts(results: list[FileParseResult]) -> dict[str, int]:
     totals: Counter[str] = Counter()
     for result in results:
@@ -50,7 +50,7 @@ def aggregate_empty_counts(results: list[FileParseResult]) -> dict[str, int]:
     return dict(sorted(totals.items()))
 
 
-# 收集所有警告
+# 汇集解析过程中的原有警告和消息字段空值警告。
 def collect_warnings(results: list[FileParseResult], messages: list[RawMessage]) -> list[str]:
     warnings: list[str] = []
     for result in results:
@@ -71,7 +71,7 @@ def collect_warnings(results: list[FileParseResult], messages: list[RawMessage])
     return warnings
 
 
-#检查有没有"致命错误"
+# 检查解析结果是否存在阻止流程继续的致命错误。
 def validate_no_fatal_errors(results: list[FileParseResult], messages: list[RawMessage]) -> None:
     if not results:
         raise ExcelValidationError("没有可校验的 Excel 解析结果")
@@ -85,7 +85,7 @@ def validate_no_fatal_errors(results: list[FileParseResult], messages: list[RawM
             raise ExcelValidationError(f"核心字段 {label} 整列为空，无法继续解析")
 
 
-#汇总成总报告
+# 汇总多个文件的解析结果并生成整体解析摘要。
 def build_parse_summary(results: list[FileParseResult]) -> ParseSummary:
     messages = [message for result in results for message in result.messages]
     validate_no_fatal_errors(results, messages)

@@ -13,6 +13,7 @@ DEFAULT_INPUT_PATH = PROJECT_ROOT / "data"
 DEFAULT_OUTPUT_PATH = PROJECT_ROOT / "output"
 
 
+# 创建并配置命令行参数解析器。
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="excel-agent",
@@ -46,6 +47,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+# 校验输入文件路径是否合法，并确保输出目录存在。
 def validate_paths(input_path: Path, output_path: Path) -> None:
     if not input_path.exists():
         raise FileNotFoundError(f"输入路径不存在：{input_path}")
@@ -56,6 +58,7 @@ def validate_paths(input_path: Path, output_path: Path) -> None:
     output_path.mkdir(parents=True, exist_ok=True)
 
 
+# 汇总本次启动使用的输入、输出、配置和模型参数。
 def build_startup_summary(args: argparse.Namespace) -> dict[str, str]:
     config = load_config(args.config)
     return {
@@ -69,11 +72,13 @@ def build_startup_summary(args: argparse.Namespace) -> dict[str, str]:
     }
 
 
+# 以格式化 JSON 的形式打印指定标题和报告数据。
 def print_json_report(title: str, data: object) -> None:
     print(title)
     print(json.dumps(data, ensure_ascii=False, indent=2))
 
 
+# 执行命令行主流程并打印步骤 1-5 的处理报告。
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)

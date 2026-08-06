@@ -16,22 +16,26 @@ class AppConfig:
     path: Path
     data: dict[str, Any]
 
+    # 从环境变量中读取 LLM 接口的基础地址。
     @property
     def llm_base_url(self) -> str | None:
         env_name = self.data.get("llm", {}).get("base_url_env", "OPENAI_BASE_URL")
         return os.getenv(env_name)
 
+    # 从环境变量中读取调用 LLM 所需的 API Key。
     @property
     def llm_api_key(self) -> str | None:
         env_name = self.data.get("llm", {}).get("api_key_env", "OPENAI_API_KEY")
         return os.getenv(env_name)
 
+    # 从环境变量中读取当前要调用的 LLM 模型名称。
     @property
     def llm_model(self) -> str | None:
         env_name = self.data.get("llm", {}).get("model_env", "OPENAI_MODEL")
         return os.getenv(env_name)
 
 
+# 读取 .env 文件并将尚未设置的配置项写入环境变量。
 def load_dotenv_file(path: Path = DEFAULT_ENV_PATH) -> None:
     if not path.exists():
         return
@@ -47,11 +51,13 @@ def load_dotenv_file(path: Path = DEFAULT_ENV_PATH) -> None:
         os.environ.setdefault(key, value)
 
 
+# 读取指定路径的 JSON 配置文件并返回字典数据。
 def load_json(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as file:
         return json.load(file)
 
 
+# 递归合并默认配置与用户覆盖配置并返回新字典。
 def merge_dict(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     merged = dict(base)
     for key, value in override.items():
@@ -62,6 +68,7 @@ def merge_dict(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]
     return merged
 
 
+# 加载默认配置并按需合并用户指定的配置文件。
 def load_config(config_path: str | Path | None = None) -> AppConfig:
     load_dotenv_file()
 

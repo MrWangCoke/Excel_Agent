@@ -20,6 +20,7 @@ class DedupeReport:
     duplicate_group_counts: dict[str, int]
     group_name: str = ""
 
+    # 将消息去重统计报告转换为可落盘的字典数据。
     def to_dict(self) -> dict[str, object]:
         return {
             "source_file": self.source_file,
@@ -33,6 +34,7 @@ class DedupeReport:
         }
 
 
+# 按确定性消息键去除重复消息，并生成重复明细和去重报告。
 def dedupe_messages(
     messages: list[RawMessage],
     *,
@@ -78,6 +80,7 @@ def dedupe_messages(
     return deduped_messages, duplicate_records, report
 
 
+# 根据群名、时间、发送人、消息类型和内容生成消息去重键。
 def build_dedupe_key(message: RawMessage) -> DedupeKey:
     return (
         normalize_text(message.group_name),
@@ -88,18 +91,22 @@ def build_dedupe_key(message: RawMessage) -> DedupeKey:
     )
 
 
+# 去除文本首尾空白并将连续空白折叠为单个空格。
 def normalize_text(value: str) -> str:
     return " ".join(value.strip().split())
 
 
+# 统一清理消息类型文本以便稳定参与去重判断。
 def normalize_message_type(value: str) -> str:
     return normalize_text(value)
 
 
+# 将消息时间统一到秒级 ISO 格式以参与去重判断。
 def normalize_chat_time(message: RawMessage) -> str:
     return message.chat_time.replace(microsecond=0).isoformat(sep=" ")
 
 
+# 按消息类型归一化消息内容，图片保留 URL，文本折叠空白。
 def normalize_content(message: RawMessage) -> str:
     content = message.content_raw.strip()
     if normalize_message_type(message.message_type) == "图片":
@@ -107,6 +114,7 @@ def normalize_content(message: RawMessage) -> str:
     return normalize_text(content)
 
 
+# 将元组形式的消息去重键转换为便于排查的字典数据。
 def dedupe_key_to_dict(key: DedupeKey) -> dict[str, str]:
     group_name, chat_time, sender_raw, message_type, content_raw = key
     return {
@@ -118,6 +126,7 @@ def dedupe_key_to_dict(key: DedupeKey) -> dict[str, str]:
     }
 
 
+# 提取消息的来源、员工、群聊和内容信息用于重复消息溯源。
 def source_ref(message: RawMessage) -> dict[str, object]:
     return {
         "source_file": message.source_file,

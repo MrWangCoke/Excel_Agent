@@ -20,6 +20,7 @@ class RawMessage:
     content_raw: str
     chat_time: datetime
 
+    # 将字典数据转换为一条结构化原始消息对象。
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Self:
         return cls(
@@ -36,6 +37,7 @@ class RawMessage:
             chat_time=datetime.fromisoformat(str(data["chat_time"])),
         )
 
+    # 将原始消息对象转换为可写入 JSON 的字典数据。
     def to_dict(self) -> dict[str, Any]:
         return {
             "row_id": self.row_id,
@@ -57,6 +59,7 @@ class ExcelTemplate:
     columns: dict[str, str]
     ignored_columns: list[str] = field(default_factory=list)
 
+    # 从配置字典创建 Excel 表头映射模板对象。
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ExcelTemplate:
         return cls(
@@ -87,6 +90,7 @@ class ParseSummary:
     empty_counts: dict[str, int]
     warnings: list[str]
 
+    # 将整体解析摘要转换为便于打印和落盘的字典数据。
     def to_dict(self) -> dict[str, Any]:
         return {
             "total_files": self.total_files,

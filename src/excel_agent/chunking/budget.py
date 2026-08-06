@@ -15,6 +15,7 @@ class BudgetEstimate:
     estimated_tokens: int
     budget_status: str
 
+    # 将上下文预算估算结果转换为可落盘的字典数据。
     def to_dict(self) -> dict[str, int | str]:
         return {
             "estimated_tokens": self.estimated_tokens,
@@ -22,6 +23,7 @@ class BudgetEstimate:
         }
 
 
+# 根据消息类型和文本长度估算单条消息占用的 token 数。
 def estimate_message_tokens(message: RawMessage) -> int:
     text_tokens = max(1, len(message.content_raw) // CHARS_PER_TOKEN)
     estimated = TEXT_BASE_TOKENS + text_tokens
@@ -32,6 +34,7 @@ def estimate_message_tokens(message: RawMessage) -> int:
     return estimated
 
 
+# 汇总整个消息块的 token 估算并判断是否超过预算。
 def estimate_chunk_budget(messages: list[RawMessage], reserve_chunk_tokens: int) -> BudgetEstimate:
     estimated_tokens = sum(estimate_message_tokens(message) for message in messages)
     status = "over_budget" if estimated_tokens > reserve_chunk_tokens else "ok"

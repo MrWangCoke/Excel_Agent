@@ -4,10 +4,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from excel_agent.cache.cache_manager import get_group_llm_context_dir, get_group_llm_context_manifest_path
+from excel_agent.cache.cache_manager import (
+    get_group_llm_context_dir,
+    get_group_llm_context_manifest_path,
+)
 from excel_agent.cache.serializers import read_json, write_json
 from excel_agent.issues.candidate_selector import (
-    CandidateConfig,
     ChunkInfo,
     build_candidate_config,
     select_candidates_for_chunk,
@@ -26,6 +28,7 @@ class LlmContextBuildResult:
     total_dropped_issue_context_items: int
 
 
+# 为指定群的每个 chunk 筛选历史问题摘要并生成受预算控制的 LLM 上下文包。
 def build_llm_context_for_group(
     *,
     group_name: str,
@@ -103,6 +106,7 @@ def build_llm_context_for_group(
     )
 
 
+# 从指定 chunk 文件中读取并还原结构化消息列表。
 def load_chunk_messages(chunk_path: Path) -> list[RawMessage]:
     data = read_json(chunk_path)
     messages = data.get("messages", [])

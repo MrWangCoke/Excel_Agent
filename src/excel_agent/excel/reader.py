@@ -14,6 +14,7 @@ class ExcelReadError(RuntimeError):
     pass
 
 
+# 动态加载 pandas 依赖，缺少依赖时抛出读取错误。
 def load_pandas() -> Any:
     try:
         return import_module("pandas")
@@ -21,7 +22,7 @@ def load_pandas() -> Any:
         raise ExcelReadError("缺少 pandas 依赖，请先运行 pip install -r requirements.txt") from exc
 
 
-#找出要处理的文件
+# 查找输入路径下需要处理的 Excel 文件并过滤临时文件。
 def discover_excel_files(input_path: Path) -> list[Path]:
     if input_path.is_file():
         return [input_path]
@@ -33,7 +34,7 @@ def discover_excel_files(input_path: Path) -> list[Path]:
     )
 
 
-#把单元格值弄干净
+# 将 Excel 单元格值统一转换为干净的字符串。
 def normalize_cell(value: Any) -> str:
     if value is None:
         return ""
@@ -42,7 +43,7 @@ def normalize_cell(value: Any) -> str:
     return str(value).strip()
 
 
-#把时间字符串变成 datetime
+# 将单元格中的时间值解析为 datetime，无法解析时返回空值。
 def parse_datetime(value: Any) -> datetime | None:
     if value is None or value == "":
         return None
@@ -60,7 +61,7 @@ def parse_datetime(value: Any) -> datetime | None:
     return cast(datetime, parsed.to_pydatetime())
 
 
-#把 Excel 读成表格
+# 使用 pandas 读取 Excel 文件并返回数据表。
 def load_dataframe(file_path: Path) -> Any:
     pd = load_pandas()
 
@@ -77,7 +78,7 @@ def load_dataframe(file_path: Path) -> Any:
         raise ExcelReadError(f"读取 Excel 失败：{file_path}；原因：{exc}") from exc
 
 
-#校验表头齐不齐
+# 校验 Excel 是否包含模板要求的全部必需表头。
 def validate_required_columns(actual_columns: set[str], expected_columns: dict[str, str], source_file: Path) -> None:
     missing = [column_name for column_name in expected_columns.values() if column_name not in actual_columns]
     if missing:
@@ -85,7 +86,7 @@ def validate_required_columns(actual_columns: set[str], expected_columns: dict[s
         raise ExcelReadError(f"{source_file.name} 缺少必需表头：{missing_text}")
 
 
-#数每列空了几个
+# 统计数据表中各个映射字段的空值数量。
 def count_empty_values(dataframe: Any, columns: dict[str, str]) -> dict[str, int]:
     empty_counts: dict[str, int] = {}
     for field_name, column_name in columns.items():
@@ -94,7 +95,7 @@ def count_empty_values(dataframe: Any, columns: dict[str, str]) -> dict[str, int
     return empty_counts
 
 
-# 一行变一条消息
+# 将 Excel 的一行记录转换为 RawMessage 对象。
 def row_to_message(
     row_number: int,
     row: Any,
@@ -120,7 +121,7 @@ def row_to_message(
     )
 
 
-#读一个文件,交成绩单
+# 读取并解析一个 Excel 文件，返回消息结果和解析警告。
 def read_excel_file(file_path: Path, template: ExcelTemplate) -> FileParseResult:
     dataframe = load_dataframe(file_path)
     validate_required_columns(set(dataframe.columns), template.columns, file_path)
@@ -145,7 +146,7 @@ def read_excel_file(file_path: Path, template: ExcelTemplate) -> FileParseResult
     )
 
 
-# 读"输入"(可能多个文件)
+# 读取输入路径下的一个或多个 Excel 文件并汇总解析结果。
 def read_excel_input(input_path: Path, template: ExcelTemplate) -> list[FileParseResult]:
     files = discover_excel_files(input_path)
     if not files:

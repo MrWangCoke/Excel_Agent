@@ -18,6 +18,7 @@ class PreprocessReport:
     effective_type_counts: dict[str, int]
     ignored_type_counts: dict[str, int]
 
+    # 将消息预处理统计报告转换为可打印和落盘的字典数据。
     def to_dict(self) -> dict[str, object]:
         return {
             "source_file": self.source_file,
@@ -30,6 +31,7 @@ class PreprocessReport:
         }
 
 
+# 从配置中读取参与问题识别的消息类型集合并提供默认值。
 def get_include_message_types(config_data: dict[str, object]) -> set[str]:
     message_types = config_data.get("message_types", {})
     if not isinstance(message_types, dict):
@@ -43,6 +45,7 @@ def get_include_message_types(config_data: dict[str, object]) -> set[str]:
     return include_types or set(DEFAULT_INCLUDE_MESSAGE_TYPES)
 
 
+# 按允许的消息类型筛选有效消息并汇总保留与忽略数量。
 def filter_effective_messages(
     messages: list[RawMessage],
     include_message_types: set[str],

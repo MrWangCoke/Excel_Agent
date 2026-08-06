@@ -28,6 +28,7 @@ class ChunkInfo:
     start_time: str
     end_time: str
 
+    # 从 chunk 元数据字典创建用于历史问题筛选的块信息。
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ChunkInfo:
         source_file = data.get("source_file")
@@ -53,6 +54,7 @@ class CandidateSelection:
     dropped_count: int
     estimated_tokens: int
 
+    # 将历史问题筛选结果转换为可写入上下文文件的字典数据。
     def to_dict(self) -> dict[str, Any]:
         return {
             "chunk_id": self.chunk_id,
@@ -66,6 +68,7 @@ class CandidateSelection:
         }
 
 
+# 从新旧配置项中构造历史问题摘要筛选配置。
 def build_candidate_config(config_data: dict[str, object]) -> CandidateConfig:
     legacy_data = config_data.get("candidate_issues", {})
     context_data = config_data.get("llm_context", {})
@@ -86,6 +89,7 @@ def build_candidate_config(config_data: dict[str, object]) -> CandidateConfig:
     )
 
 
+# 将配置值解析为正整数，解析失败时返回默认值。
 def _positive_int(value: object, default: int) -> int:
     try:
         parsed = int(value)  # type: ignore[arg-type]
@@ -94,6 +98,7 @@ def _positive_int(value: object, default: int) -> int:
     return parsed if parsed > 0 else default
 
 
+# 根据群、时间窗、状态和 token 预算为当前 chunk 筛选历史问题。
 def select_candidates_for_chunk(
     chunk: ChunkInfo,
     issue_index: IssueIndex,
@@ -146,22 +151,26 @@ def select_candidates_for_chunk(
     )
 
 
+# 将 ISO 格式时间字符串解析为 datetime 对象。
 def _parse_datetime(value: str):
     from datetime import datetime
 
     return datetime.fromisoformat(value)
 
 
+# 从问题索引中展开并返回全部已知问题。
 def _all_issues(issue_index: IssueIndex) -> list[KnownIssue]:
     return [issue for issues in issue_index.by_group.values() for issue in issues]
 
 
+# 生成历史问题排序键，使未闭环、二次提问和最近更新的问题优先。
 def _candidate_sort_key(issue: KnownIssue) -> tuple[int, int, Any, str]:
     status_score = 1 if issue.status in OPEN_STATUSES else 0
     reopened_score = 1 if issue.reopened else 0
     return status_score, reopened_score, issue.last_seen_at, issue.issue_id
 
 
+# 将一个历史问题压缩为适合注入 LLM 上下文的摘要行。
 def format_candidate_line(issue: KnownIssue) -> str:
     row_ids = ",".join(str(row_id) for row_id in issue.row_ids)
     return (
@@ -173,5 +182,6 @@ def format_candidate_line(issue: KnownIssue) -> str:
     )
 
 
+# 根据字符数量粗略估算一行历史问题摘要占用的 token 数。
 def estimate_line_tokens(line: str) -> int:
     return max(1, len(line) // CHARS_PER_TOKEN)

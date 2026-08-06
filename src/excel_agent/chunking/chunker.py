@@ -26,6 +26,7 @@ class ChunkConfig:
     reserve_chunk_tokens: int = 60000
     rebuild_window_days: int = 1
 
+    # 计算滑动窗口每次向前移动的消息数量。
     @property
     def step(self) -> int:
         return self.size - self.overlap
@@ -60,6 +61,7 @@ class ChunkRecord:
     metadata: dict[str, object]
 
 
+# 从运行配置中读取并校验消息块大小、重叠和预算参数。
 def build_chunk_config(config_data: dict[str, object]) -> ChunkConfig:
     chunk_data = config_data.get("chunk", {})
     budget_data = config_data.get("context_budget", {})
@@ -85,6 +87,7 @@ def build_chunk_config(config_data: dict[str, object]) -> ChunkConfig:
     )
 
 
+# 将配置值解析为正整数，失败时返回默认值。
 def _positive_int(value: object, default: int) -> int:
     try:
         parsed = int(value)  # type: ignore[arg-type]
@@ -93,6 +96,7 @@ def _positive_int(value: object, default: int) -> int:
     return parsed if parsed > 0 else default
 
 
+# 将配置值解析为非负整数，失败时返回默认值。
 def _non_negative_int(value: object, default: int) -> int:
     try:
         parsed = int(value)  # type: ignore[arg-type]
@@ -101,6 +105,7 @@ def _non_negative_int(value: object, default: int) -> int:
     return parsed if parsed >= 0 else default
 
 
+# 按来源文件和群名称归集消息，并在各组内按时间排序。
 def group_messages(messages: list[RawMessage]) -> dict[tuple[str, str], list[RawMessage]]:
     grouped: dict[tuple[str, str], list[RawMessage]] = defaultdict(list)
     for message in messages:
@@ -113,6 +118,7 @@ def group_messages(messages: list[RawMessage]) -> dict[tuple[str, str], list[Raw
     }
 
 
+# 按固定大小和重叠数量迭代生成连续消息窗口。
 def iter_windows(messages: list[RawMessage], config: ChunkConfig) -> Iterator[tuple[list[RawMessage], int]]:
     start = 0
     is_first = True
@@ -127,10 +133,12 @@ def iter_windows(messages: list[RawMessage], config: ChunkConfig) -> Iterator[tu
         is_first = False
 
 
+# 将时间格式化为适合 chunk 文件名使用的无冒号字符串。
 def format_chunk_time(value) -> str:
     return value.strftime("%Y%m%dT%H%M%S")
 
 
+# 根据 chunk 内消息内容生成稳定的短指纹。
 def build_chunk_fingerprint(messages: list[RawMessage]) -> str:
     payload = "\n".join(
         f"{message.source_file}|{message.row_id}|{message.chat_time.isoformat(sep=' ')}|"
@@ -140,6 +148,7 @@ def build_chunk_fingerprint(messages: list[RawMessage]) -> str:
     return sha256(payload.encode("utf-8")).hexdigest()[:8]
 
 
+# 根据消息时间范围和内容指纹生成 chunk 标识。
 def make_time_range_chunk_id(messages: list[RawMessage]) -> tuple[str, str]:
     fingerprint = build_chunk_fingerprint(messages)
     start_time = format_chunk_time(messages[0].chat_time)
@@ -148,6 +157,7 @@ def make_time_range_chunk_id(messages: list[RawMessage]) -> tuple[str, str]:
     return chunk_id, fingerprint
 
 
+# 构造单个 chunk 的时间、数量、预算和文件路径等元数据。
 def build_chunk_metadata(
     *,
     chunk_id: str,
@@ -181,6 +191,7 @@ def build_chunk_metadata(
     }
 
 
+# 为单个群聊按连续时间线生成 chunk 文件和 manifest 清单。
 def build_chunks_for_group(
     *,
     group_name: str,
@@ -249,6 +260,7 @@ def build_chunks_for_group(
     )
 
 
+# 兼容按来源构建 chunk 的旧入口，并汇总各群的切块统计。
 def build_chunks_for_source(
     *,
     source_file: Path,

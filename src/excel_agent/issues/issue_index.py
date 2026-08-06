@@ -11,6 +11,7 @@ from excel_agent.issues.issue_store import KnownIssue
 class IssueIndex:
     by_group: dict[str, list[KnownIssue]]
 
+    # 将按群组织的问题索引转换为可落盘的字典数据。
     def to_dict(self) -> dict[str, Any]:
         return {
             "groups": {
@@ -20,6 +21,7 @@ class IssueIndex:
         }
 
 
+# 按群名称归集并排序已知问题，生成便于检索的问题索引。
 def build_issue_index(issues: list[KnownIssue]) -> IssueIndex:
     grouped: dict[str, list[KnownIssue]] = defaultdict(list)
     for issue in issues:

@@ -11,6 +11,7 @@ class IssuePerson:
     sender_resolved: str = ""
     role: str = "unknown"
 
+    # 从字典数据创建问题相关人员对象。
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Self:
         return cls(
@@ -19,6 +20,7 @@ class IssuePerson:
             role=str(data.get("role", "unknown")),
         )
 
+    # 将问题相关人员对象转换为字典数据。
     def to_dict(self) -> dict[str, Any]:
         return {
             "sender_raw": self.sender_raw,
@@ -33,6 +35,7 @@ class IssueEvidence:
     kind: str
     quote: str
 
+    # 从字典数据创建问题证据对象。
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Self:
         return cls(
@@ -41,6 +44,7 @@ class IssueEvidence:
             quote=str(data.get("quote", "")),
         )
 
+    # 将问题证据对象转换为字典数据。
     def to_dict(self) -> dict[str, Any]:
         return {
             "row_id": self.row_id,
@@ -57,6 +61,7 @@ class IssueClosure:
     basis: str = ""
     confidence: str = "low"
 
+    # 从字典数据创建问题闭环信息对象。
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Self:
         closed_at = data.get("closed_at")
@@ -68,6 +73,7 @@ class IssueClosure:
             confidence=str(data.get("confidence", "low")),
         )
 
+    # 将问题闭环信息对象转换为字典数据。
     def to_dict(self) -> dict[str, Any]:
         return {
             "is_closed": self.is_closed,
@@ -84,6 +90,7 @@ class IssueMergeInfo:
     merged_issue_ids: list[str] = field(default_factory=list)
     duplicate_of: str | None = None
 
+    # 从字典数据创建问题合并关系对象。
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Self:
         return cls(
@@ -92,6 +99,7 @@ class IssueMergeInfo:
             duplicate_of=_optional_str(data.get("duplicate_of")),
         )
 
+    # 将问题合并关系对象转换为字典数据。
     def to_dict(self) -> dict[str, Any]:
         return {
             "parent_issue_id": self.parent_issue_id,
@@ -107,6 +115,7 @@ class IssueLlmInfo:
     confidence: str = "medium"
     notes: str = ""
 
+    # 从字典数据创建问题的 LLM 来源与置信度信息。
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Self:
         return cls(
@@ -116,6 +125,7 @@ class IssueLlmInfo:
             notes=str(data.get("notes", "")),
         )
 
+    # 将问题的 LLM 来源与置信度信息转换为字典数据。
     def to_dict(self) -> dict[str, Any]:
         return {
             "source_chunk_ids": self.source_chunk_ids,
@@ -148,6 +158,7 @@ class Issue:
     merge: IssueMergeInfo = field(default_factory=IssueMergeInfo)
     llm: IssueLlmInfo = field(default_factory=IssueLlmInfo)
 
+    # 从完整字典数据还原结构化问题对象。
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Self:
         closed_at = data.get("closed_at")
@@ -174,6 +185,7 @@ class Issue:
             llm=IssueLlmInfo.from_dict(data.get("llm", {})),
         )
 
+    # 将完整问题对象转换为可落盘的字典数据。
     def to_dict(self) -> dict[str, Any]:
         return {
             "issue_id": self.issue_id,
@@ -211,6 +223,8 @@ class KnownIssue:
     summary: str
     row_ids: list[int] = field(default_factory=list)
 
+    # 从完整问题对象提取适合历史问题上下文使用的精简问题对象。
+    # 从完整问题对象提取适合历史问题上下文使用的精简问题对象。
     @classmethod
     def from_issue(cls, issue: Issue) -> KnownIssue:
         return cls(
@@ -225,6 +239,7 @@ class KnownIssue:
             row_ids=issue.row_ids,
         )
 
+    # 从字典数据创建精简的已知问题对象。
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Self:
         return cls(
@@ -239,6 +254,7 @@ class KnownIssue:
             row_ids=[int(row_id) for row_id in data.get("row_ids", [])],
         )
 
+    # 将精简的已知问题对象转换为字典数据。
     def to_dict(self) -> dict[str, Any]:
         return {
             "issue_id": self.issue_id,
@@ -253,6 +269,7 @@ class KnownIssue:
         }
 
 
+# 将可选值转换为非空字符串或 None。
 def _optional_str(value: object) -> str | None:
     if value is None:
         return None
@@ -260,6 +277,7 @@ def _optional_str(value: object) -> str | None:
     return text or None
 
 
+# 从问题主库字典中加载精简的已知问题列表。
 def load_issue_store(data: dict[str, Any]) -> list[KnownIssue]:
     raw_issues = data.get("issues", [])
     if not isinstance(raw_issues, list):
@@ -267,5 +285,6 @@ def load_issue_store(data: dict[str, Any]) -> list[KnownIssue]:
     return [KnownIssue.from_dict(item) for item in raw_issues if isinstance(item, dict)]
 
 
+# 将已知问题列表封装为问题主库的字典结构。
 def issue_store_to_dict(issues: list[KnownIssue]) -> dict[str, Any]:
     return {"issues": [issue.to_dict() for issue in issues]}
