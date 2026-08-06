@@ -4,10 +4,18 @@ import argparse
 import json
 from pathlib import Path
 
+from rich.progress import (
+    BarColumn,
+    Progress,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
+
 from .config import PROJECT_ROOT, load_config
 from .excel.reader import ExcelReadError
 from .excel.validator import ExcelValidationError
-from .pipeline import run_steps_1_to_5
+from .pipeline import run_steps_1_to_6
 
 DEFAULT_INPUT_PATH = PROJECT_ROOT / "data"
 DEFAULT_OUTPUT_PATH = PROJECT_ROOT / "output"
@@ -78,7 +86,7 @@ def print_json_report(title: str, data: object) -> None:
     print(json.dumps(data, ensure_ascii=False, indent=2))
 
 
-# 执行命令行主流程并打印步骤 1-5 的处理报告。
+# 执行命令行主流程并打印步骤 1-6 的处理报告。
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -91,6 +99,31 @@ def main(argv: list[str] | None = None) -> int:
         print_json_report("Excel Agent 启动参数", build_startup_summary(args))
 
         config = load_config(args.config)
+        progress = Progress(
+            TextColumn("步骤 6 [群 {task.fields[group]}]"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TimeElapsedColumn(),
+        )
+        progress.start()
+        progress_task = progress.add_task("LLM 提取", total=1, group="准备中")
+
+        def on_progress(
+            group_name: str,
+            group_number: int,
+            total_groups: int,
+            chunk_id: str,
+            current: int,
+            total: int,
+            skipped: bool,
+        ) -> None:
+            progress.update(
+                progress_task,
+                total=max(total, 1),
+                completed=current,
+                group=f"{group_name} / {chunk_id}{'（复用）' if skipped else ''}",
+            )
+
         (
             _,
             summary,
@@ -100,38 +133,79 @@ def main(argv: list[str] | None = None) -> int:
             dedupe_reports,
             chunk_results,
             llm_context_results,
-        ) = run_steps_1_to_5(input_path, config)
+            llm_results,
+        ) = run_steps_1_to_6(
+            input_path,
+            config,
+            mock=args.mock,
+            resume=args.resume,
+            progress_callback=on_progress,
+        )
+        progress.stop()
         print_json_report("Excel 解析摘要", summary.to_dict())
-        print_json_report("消息预处理报告", [report.to_dict() for report in preprocess_reports])
+        print_json_report(
+            "消息预处理报告", [report.to_dict() for report in preprocess_reports]
+        )
         print_json_report(
             "群级消息去重报告",
             {
                 "total_groups": len(dedupe_reports),
-                "total_effective_messages": sum(report.total_messages for report in dedupe_reports),
-                "total_deduped_messages": sum(report.deduped_messages for report in dedupe_reports),
-                "total_duplicate_messages": sum(report.duplicate_messages for report in dedupe_reports),
-                "groups_with_duplicates": sum(1 for report in dedupe_reports if report.duplicate_messages),
+                "total_effective_messages": sum(
+                    report.total_messages for report in dedupe_reports
+                ),
+                "total_deduped_messages": sum(
+                    report.deduped_messages for report in dedupe_reports
+                ),
+                "total_duplicate_messages": sum(
+                    report.duplicate_messages for report in dedupe_reports
+                ),
+                "groups_with_duplicates": sum(
+                    1 for report in dedupe_reports if report.duplicate_messages
+                ),
             },
         )
         print_json_report(
             "群级消息切块报告",
             {
                 "total_groups": len(chunk_results),
-                "total_deduped_messages": sum(result.total_deduped_messages for result in chunk_results),
+                "total_deduped_messages": sum(
+                    result.total_deduped_messages for result in chunk_results
+                ),
                 "total_chunks": sum(result.total_chunks for result in chunk_results),
-                "total_chunk_message_instances": sum(result.total_chunk_message_instances for result in chunk_results),
-                "total_overlap_messages": sum(result.total_overlap_messages for result in chunk_results),
+                "total_chunk_message_instances": sum(
+                    result.total_chunk_message_instances for result in chunk_results
+                ),
+                "total_overlap_messages": sum(
+                    result.total_overlap_messages for result in chunk_results
+                ),
             },
         )
         print_json_report(
             "LLM 上下文包报告",
             {
                 "total_groups": len(deduped_groups),
-                "total_chunks": sum(result.total_chunks for result in llm_context_results),
-                "total_issue_context_items": sum(result.total_issue_context_items for result in llm_context_results),
-                "total_dropped_issue_context_items": sum(
-                    result.total_dropped_issue_context_items for result in llm_context_results
+                "total_chunks": sum(
+                    result.total_chunks for result in llm_context_results
                 ),
+                "total_issue_context_items": sum(
+                    result.total_issue_context_items for result in llm_context_results
+                ),
+                "total_dropped_issue_context_items": sum(
+                    result.total_dropped_issue_context_items
+                    for result in llm_context_results
+                ),
+            },
+        )
+        print_json_report(
+            "步骤 6 LLM 提取报告",
+            {
+                "total_groups": len(llm_results),
+                "total_chunks": sum(result.total_chunks for result in llm_results),
+                "completed_chunks": sum(
+                    result.completed_chunks for result in llm_results
+                ),
+                "total_issues": sum(result.total_issues for result in llm_results),
+                "total_warnings": sum(result.total_warnings for result in llm_results),
             },
         )
     except (
@@ -145,5 +219,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"启动失败：{exc}")
         return 1
 
-    print("步骤 5 LLM 上下文包已完成；sources、groups、chunks、llm_context 和 issues 已写入 .cache/。")
+    print(
+        "步骤 6 LLM 单块提取已完成；llm_results 已写入各群 .cache/groups/*/llm_results/。"
+    )
     return 0

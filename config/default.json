@@ -35,6 +35,7 @@
     "api_key_env": "OPENAI_API_KEY",
     "model_env": "OPENAI_MODEL",
     "temperature": 0,
+    "timeout_seconds": 120,
     "requires_vision": true
   },
   "output": {

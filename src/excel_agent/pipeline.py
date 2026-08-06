@@ -12,6 +12,7 @@ from excel_agent.cache.cache_manager import (
     get_group_chunks_manifest_path,
     get_group_dedupe_report_path,
     get_group_deduped_messages_path,
+    get_group_dir,
     get_group_duplicate_messages_path,
     get_group_effective_messages_path,
     get_group_issue_index_path,
@@ -41,6 +42,7 @@ from excel_agent.llm.context_builder import (
     LlmContextBuildResult,
     build_llm_context_for_group,
 )
+from excel_agent.llm.runner import GroupExtractionResult, extract_group_chunks
 from excel_agent.models import ExcelTemplate, FileParseResult, ParseSummary, RawMessage
 from excel_agent.preprocess.message_deduper import DedupeReport, dedupe_messages
 from excel_agent.preprocess.message_filter import (
@@ -64,13 +66,17 @@ def resolve_project_path(path_value: str | Path) -> Path:
 
 # 加载配置指定的 Excel 表头映射模板。
 def load_template(config: AppConfig) -> ExcelTemplate:
-    template_path = resolve_project_path(config.data.get("template_path", "config/template.json"))
+    template_path = resolve_project_path(
+        config.data.get("template_path", "config/template.json")
+    )
     template_data = load_json(template_path)
     return ExcelTemplate.from_dict(template_data)
 
 
 # 读取并校验 Excel 输入，同时落盘每个来源文件的解析结果。
-def parse_excel_input(input_path: Path, config: AppConfig) -> tuple[list[FileParseResult], ParseSummary]:
+def parse_excel_input(
+    input_path: Path, config: AppConfig
+) -> tuple[list[FileParseResult], ParseSummary]:
     template = load_template(config)
     results = read_excel_input(input_path, template)
     summary = build_parse_summary(results)
@@ -83,7 +89,10 @@ def parse_excel_input(input_path: Path, config: AppConfig) -> tuple[list[FilePar
 # 将单个 Excel 来源的原始消息和来源元数据写入 source 缓存。
 def write_source_parse_outputs(result: FileParseResult) -> None:
     source_file = result.source_file
-    write_jsonl(get_parsed_messages_path(source_file), (message.to_dict() for message in result.messages))
+    write_jsonl(
+        get_parsed_messages_path(source_file),
+        (message.to_dict() for message in result.messages),
+    )
     write_json(
         get_source_meta_path(source_file),
         {
@@ -118,7 +127,9 @@ def save_effective_messages(
             get_source_effective_messages_path(result.source_file),
             (message.to_dict() for message in effective_messages),
         )
-        write_json(get_source_preprocess_report_path(result.source_file), report.to_dict())
+        write_json(
+            get_source_preprocess_report_path(result.source_file), report.to_dict()
+        )
         messages_by_source[build_source_id(result.source_file)] = effective_messages
         reports.append(report)
 
@@ -144,7 +155,14 @@ def group_messages_by_name(messages: list[RawMessage]) -> dict[str, list[RawMess
     for message in messages:
         groups[message.group_name].append(message)
     return {
-        group_name: sorted(items, key=lambda message: (message.chat_time, message.row_id, message.source_file))
+        group_name: sorted(
+            items,
+            key=lambda message: (
+                message.chat_time,
+                message.row_id,
+                message.source_file,
+            ),
+        )
         for group_name, items in groups.items()
     }
 
@@ -161,14 +179,18 @@ def write_group_meta(group_name: str, messages: list[RawMessage]) -> None:
             "is_empty_group": not bool(normalize_name(group_name)),
             "source_files": sorted({message.source_file for message in messages}),
             "total_effective_messages": len(messages),
-            "time_start": messages[0].chat_time.isoformat(sep=" ") if messages else None,
+            "time_start": messages[0].chat_time.isoformat(sep=" ")
+            if messages
+            else None,
             "time_end": messages[-1].chat_time.isoformat(sep=" ") if messages else None,
         },
     )
 
 
 # 更新指定群某个处理阶段的状态、输出文件和统计数量。
-def write_group_state(group_name: str, stage: str, status: str, outputs: list[str], counts: dict[str, int]) -> None:
+def write_group_state(
+    group_name: str, stage: str, status: str, outputs: list[str], counts: dict[str, int]
+) -> None:
     state_path = get_group_state_path(group_name)
     state = read_json(state_path) if state_path.exists() else {}
     stages = state.get("stages", {})
@@ -192,7 +214,10 @@ def ingest_groups_from_sources() -> dict[str, list[RawMessage]]:
     grouped = group_messages_by_name(all_messages)
     for group_name, messages in grouped.items():
         write_group_meta(group_name, messages)
-        write_jsonl(get_group_effective_messages_path(group_name), (message.to_dict() for message in messages))
+        write_jsonl(
+            get_group_effective_messages_path(group_name),
+            (message.to_dict() for message in messages),
+        )
         write_group_state(
             group_name,
             "group_ingest",
@@ -204,7 +229,9 @@ def ingest_groups_from_sources() -> dict[str, list[RawMessage]]:
 
 
 # 对每个群的公共有效消息执行确定性去重并保存去重结果和报告。
-def dedupe_group_messages(groups: dict[str, list[RawMessage]]) -> tuple[dict[str, list[RawMessage]], list[DedupeReport]]:
+def dedupe_group_messages(
+    groups: dict[str, list[RawMessage]],
+) -> tuple[dict[str, list[RawMessage]], list[DedupeReport]]:
     deduped_by_group: dict[str, list[RawMessage]] = {}
     reports: list[DedupeReport] = []
 
@@ -214,16 +241,33 @@ def dedupe_group_messages(groups: dict[str, list[RawMessage]]) -> tuple[dict[str
             source_file="<group>",
             group_name=group_name,
         )
-        deduped_messages = sorted(deduped_messages, key=lambda message: (message.chat_time, message.row_id, message.source_file))
-        write_jsonl(get_group_deduped_messages_path(group_name), (message.to_dict() for message in deduped_messages))
+        deduped_messages = sorted(
+            deduped_messages,
+            key=lambda message: (
+                message.chat_time,
+                message.row_id,
+                message.source_file,
+            ),
+        )
+        write_jsonl(
+            get_group_deduped_messages_path(group_name),
+            (message.to_dict() for message in deduped_messages),
+        )
         write_jsonl(get_group_duplicate_messages_path(group_name), duplicate_records)
         write_json(get_group_dedupe_report_path(group_name), report.to_dict())
         write_group_state(
             group_name,
             "dedupe",
             "completed",
-            ["deduped_messages.jsonl", "duplicate_messages.jsonl", "dedupe_report.json"],
-            {"deduped_messages": len(deduped_messages), "duplicate_messages": len(duplicate_records)},
+            [
+                "deduped_messages.jsonl",
+                "duplicate_messages.jsonl",
+                "dedupe_report.json",
+            ],
+            {
+                "deduped_messages": len(deduped_messages),
+                "duplicate_messages": len(duplicate_records),
+            },
         )
         deduped_by_group[group_name] = deduped_messages
         reports.append(report)
@@ -240,13 +284,18 @@ def build_group_chunks(
     chunk_results: list[GroupChunkBuildResult] = []
 
     for group_name, deduped_messages in groups.items():
-        result = build_chunks_for_group(group_name=group_name, messages=deduped_messages, config=chunk_config)
+        result = build_chunks_for_group(
+            group_name=group_name, messages=deduped_messages, config=chunk_config
+        )
         write_group_state(
             group_name,
             "chunk",
             "completed",
             ["chunks_manifest.json", "chunks/"],
-            {"total_chunks": result.total_chunks, "total_deduped_messages": result.total_deduped_messages},
+            {
+                "total_chunks": result.total_chunks,
+                "total_deduped_messages": result.total_deduped_messages,
+            },
         )
         chunk_results.append(result)
 
@@ -256,10 +305,16 @@ def build_group_chunks(
 # 确保指定群的问题主库和问题索引文件存在并返回问题主库数据。
 def ensure_group_issue_files(group_name: str) -> dict[str, Any]:
     issue_store_path = get_group_issue_store_path(group_name)
-    issues = load_issue_store(read_json(issue_store_path)) if issue_store_path.exists() else []
+    issues = (
+        load_issue_store(read_json(issue_store_path))
+        if issue_store_path.exists()
+        else []
+    )
     issue_store_data = issue_store_to_dict(issues)
     write_json(issue_store_path, issue_store_data)
-    write_json(get_group_issue_index_path(group_name), build_issue_index(issues).to_dict())
+    write_json(
+        get_group_issue_index_path(group_name), build_issue_index(issues).to_dict()
+    )
     return issue_store_data
 
 
@@ -293,11 +348,60 @@ def build_llm_contexts(
     return results
 
 
+# 对所有群逐块执行步骤 6，并将局部识别结果写入各群 llm_results 目录。
+def extract_llm_results(
+    groups: dict[str, list[RawMessage]],
+    config: AppConfig,
+    *,
+    mock: bool = False,
+    resume: bool = False,
+    progress_callback: Any = None,
+) -> list[GroupExtractionResult]:
+    results: list[GroupExtractionResult] = []
+    total_groups = len(groups)
+    for group_number, group_name in enumerate(groups, start=1):
+        group_callback = None
+        if progress_callback is not None:
+            group_callback = (
+                lambda chunk_id, current, total, skipped, gn=group_name, gi=group_number: (
+                    progress_callback(
+                        gn, gi, total_groups, chunk_id, current, total, skipped
+                    )
+                )
+            )
+        result = extract_group_chunks(
+            group_folder=get_group_dir(group_name),
+            config=config,
+            mock=mock,
+            resume=resume,
+            progress_callback=group_callback,
+        )
+        write_group_state(
+            group_name,
+            "llm_extract",
+            "completed",
+            ["llm_results/", "llm_results_manifest.json"],
+            {
+                "total_chunks": result.total_chunks,
+                "completed_chunks": result.completed_chunks,
+                "total_issues": result.total_issues,
+                "total_warnings": result.total_warnings,
+            },
+        )
+        results.append(result)
+    return results
+
+
 # 串联执行 Excel 解析、来源落盘和有效消息预处理步骤。
 def run_steps_1_to_3(
     input_path: Path,
     config: AppConfig,
-) -> tuple[list[FileParseResult], ParseSummary, dict[str, list[RawMessage]], list[PreprocessReport]]:
+) -> tuple[
+    list[FileParseResult],
+    ParseSummary,
+    dict[str, list[RawMessage]],
+    list[PreprocessReport],
+]:
     results, summary = parse_excel_input(input_path, config)
     effective_messages, reports = save_effective_messages(results, config)
     return results, summary, effective_messages, reports
@@ -317,7 +421,9 @@ def run_steps_1_to_5(
     list[GroupChunkBuildResult],
     list[LlmContextBuildResult],
 ]:
-    results, summary, effective_messages, preprocess_reports = run_steps_1_to_3(input_path, config)
+    results, summary, effective_messages, preprocess_reports = run_steps_1_to_3(
+        input_path, config
+    )
     group_effective_messages = ingest_groups_from_sources()
     deduped_groups, dedupe_reports = dedupe_group_messages(group_effective_messages)
     chunk_results = build_group_chunks(deduped_groups, config)
@@ -333,6 +439,37 @@ def run_steps_1_to_5(
         chunk_results,
         llm_context_results,
     )
+
+
+# 串联执行步骤 1-6；步骤 6 在真实模式调用模型，在 mock 模式生成空的合法结果。
+def run_steps_1_to_6(
+    input_path: Path,
+    config: AppConfig,
+    *,
+    mock: bool = False,
+    resume: bool = False,
+    progress_callback: Any = None,
+) -> tuple[
+    list[FileParseResult],
+    ParseSummary,
+    dict[str, list[RawMessage]],
+    list[PreprocessReport],
+    dict[str, list[RawMessage]],
+    list[DedupeReport],
+    list[GroupChunkBuildResult],
+    list[LlmContextBuildResult],
+    list[GroupExtractionResult],
+]:
+    step_5_result = run_steps_1_to_5(input_path, config)
+    llm_results = extract_llm_results(
+        step_5_result[4],
+        config,
+        mock=mock,
+        resume=resume,
+        progress_callback=progress_callback,
+    )
+    write_global_state(step_5_result[0], status="step_6_completed")
+    return (*step_5_result, llm_results)
 
 
 # 将当前来源文件清单、文件指纹和整体处理状态写入全局状态文件。
