@@ -69,35 +69,9 @@ def build_startup_summary(args: argparse.Namespace) -> dict[str, str]:
     }
 
 
-def print_startup_summary(args: argparse.Namespace) -> None:
-    summary = build_startup_summary(args)
-    print("Excel Agent 启动参数")
-    print(json.dumps(summary, ensure_ascii=False, indent=2))
-
-
-def print_parse_summary(summary: dict[str, object]) -> None:
-    print("Excel 解析摘要")
-    print(json.dumps(summary, ensure_ascii=False, indent=2))
-
-
-def print_preprocess_reports(reports: list[dict[str, object]]) -> None:
-    print("消息预处理报告")
-    print(json.dumps(reports, ensure_ascii=False, indent=2))
-
-
-def print_dedupe_reports(reports: list[dict[str, object]]) -> None:
-    print("消息去重报告")
-    print(json.dumps(reports, ensure_ascii=False, indent=2))
-
-
-def print_chunk_reports(reports: list[dict[str, object]]) -> None:
-    print("消息切块报告")
-    print(json.dumps(reports, ensure_ascii=False, indent=2))
-
-
-def print_candidate_report(report: dict[str, object]) -> None:
-    print("候选问题注入报告")
-    print(json.dumps(report, ensure_ascii=False, indent=2))
+def print_json_report(title: str, data: object) -> None:
+    print(title)
+    print(json.dumps(data, ensure_ascii=False, indent=2))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -109,7 +83,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         validate_paths(input_path, output_path)
-        print_startup_summary(args)
+        print_json_report("Excel Agent 启动参数", build_startup_summary(args))
 
         config = load_config(args.config)
         (
@@ -117,34 +91,43 @@ def main(argv: list[str] | None = None) -> int:
             summary,
             _,
             preprocess_reports,
-            _,
+            deduped_groups,
             dedupe_reports,
             chunk_results,
-            candidate_selections,
+            llm_context_results,
         ) = run_steps_1_to_5(input_path, config)
-        print_parse_summary(summary.to_dict())
-        print_preprocess_reports([report.to_dict() for report in preprocess_reports])
-        print_dedupe_reports([report.to_dict() for report in dedupe_reports])
-        print_chunk_reports(
-            [
-                {
-                    "source_file": result.source_file,
-                    "run_id": result.run_id,
-                    "manifest_path": str(result.manifest_path),
-                    "total_effective_messages": result.total_effective_messages,
-                    "total_chunks": result.total_chunks,
-                    "total_chunk_message_instances": result.total_chunk_message_instances,
-                    "total_overlap_messages": result.total_overlap_messages,
-                }
-                for result in chunk_results
-            ]
-        )
-        print_candidate_report(
+        print_json_report("Excel 解析摘要", summary.to_dict())
+        print_json_report("消息预处理报告", [report.to_dict() for report in preprocess_reports])
+        print_json_report(
+            "群级消息去重报告",
             {
-                "total_chunks": len(candidate_selections),
-                "total_candidates": sum(len(selection.candidates) for selection in candidate_selections),
-                "total_dropped_candidates": sum(selection.dropped_count for selection in candidate_selections),
-            }
+                "total_groups": len(dedupe_reports),
+                "total_effective_messages": sum(report.total_messages for report in dedupe_reports),
+                "total_deduped_messages": sum(report.deduped_messages for report in dedupe_reports),
+                "total_duplicate_messages": sum(report.duplicate_messages for report in dedupe_reports),
+                "groups_with_duplicates": sum(1 for report in dedupe_reports if report.duplicate_messages),
+            },
+        )
+        print_json_report(
+            "群级消息切块报告",
+            {
+                "total_groups": len(chunk_results),
+                "total_deduped_messages": sum(result.total_deduped_messages for result in chunk_results),
+                "total_chunks": sum(result.total_chunks for result in chunk_results),
+                "total_chunk_message_instances": sum(result.total_chunk_message_instances for result in chunk_results),
+                "total_overlap_messages": sum(result.total_overlap_messages for result in chunk_results),
+            },
+        )
+        print_json_report(
+            "LLM 上下文包报告",
+            {
+                "total_groups": len(deduped_groups),
+                "total_chunks": sum(result.total_chunks for result in llm_context_results),
+                "total_issue_context_items": sum(result.total_issue_context_items for result in llm_context_results),
+                "total_dropped_issue_context_items": sum(
+                    result.total_dropped_issue_context_items for result in llm_context_results
+                ),
+            },
         )
     except (
         ExcelReadError,
@@ -157,5 +140,5 @@ def main(argv: list[str] | None = None) -> int:
         print(f"启动失败：{exc}")
         return 1
 
-    print("步骤 5 候选问题注入控制已完成；deduped_messages、issue_store、issue_index 和 chunk_candidates 已写入 .cache/<run_id>/。")
+    print("步骤 5 LLM 上下文包已完成；sources、groups、chunks、llm_context 和 issues 已写入 .cache/。")
     return 0

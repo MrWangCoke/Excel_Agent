@@ -17,6 +17,13 @@
     "known_issue_budget_tokens": 6000,
     "compression_levels": ["L1", "L2", "L3"]
   },
+  "llm_context": {
+    "lookback_days": 2,
+    "issue_context_budget_tokens": 6000,
+    "max_issue_context_items": 80,
+    "max_chunk_images": 10,
+    "context_message_window": 15
+  },
   "context_budget": {
     "max_context_tokens": 128000,
     "reserve_output_tokens": 8000,

@@ -30,9 +30,13 @@ class ChunkInfo:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ChunkInfo:
+        source_file = data.get("source_file")
+        if source_file is None:
+            source_files = data.get("source_files", [])
+            source_file = source_files[0] if isinstance(source_files, list) and source_files else ""
         return cls(
             chunk_id=str(data["chunk_id"]),
-            source_file=str(data["source_file"]),
+            source_file=str(source_file),
             group_name=str(data.get("group_name", "")),
             start_time=str(data["start_time"]),
             end_time=str(data["end_time"]),
@@ -63,16 +67,22 @@ class CandidateSelection:
 
 
 def build_candidate_config(config_data: dict[str, object]) -> CandidateConfig:
-    data = config_data.get("candidate_issues", {})
-    if not isinstance(data, dict):
-        data = {}
+    legacy_data = config_data.get("candidate_issues", {})
+    context_data = config_data.get("llm_context", {})
+    if not isinstance(legacy_data, dict):
+        legacy_data = {}
+    if not isinstance(context_data, dict):
+        context_data = {}
 
     return CandidateConfig(
-        lookback_days=_positive_int(data.get("lookback_days"), 2),
-        same_group_only=bool(data.get("same_group_only", True)),
-        include_long_open_issues=bool(data.get("include_long_open_issues", False)),
-        max_candidates=_positive_int(data.get("max_candidates"), 80),
-        known_issue_budget_tokens=_positive_int(data.get("known_issue_budget_tokens"), 6000),
+        lookback_days=_positive_int(context_data.get("lookback_days", legacy_data.get("lookback_days")), 2),
+        same_group_only=bool(legacy_data.get("same_group_only", True)),
+        include_long_open_issues=bool(legacy_data.get("include_long_open_issues", False)),
+        max_candidates=_positive_int(context_data.get("max_issue_context_items", legacy_data.get("max_candidates")), 80),
+        known_issue_budget_tokens=_positive_int(
+            context_data.get("issue_context_budget_tokens", legacy_data.get("known_issue_budget_tokens")),
+            6000,
+        ),
     )
 
 

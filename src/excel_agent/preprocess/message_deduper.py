@@ -18,10 +18,12 @@ class DedupeReport:
     duplicate_key_count: int
     duplicate_type_counts: dict[str, int]
     duplicate_group_counts: dict[str, int]
+    group_name: str = ""
 
     def to_dict(self) -> dict[str, object]:
         return {
             "source_file": self.source_file,
+            "group_name": self.group_name,
             "total_messages": self.total_messages,
             "deduped_messages": self.deduped_messages,
             "duplicate_messages": self.duplicate_messages,
@@ -35,6 +37,7 @@ def dedupe_messages(
     messages: list[RawMessage],
     *,
     source_file: str,
+    group_name: str = "",
 ) -> tuple[list[RawMessage], list[dict[str, Any]], DedupeReport]:
     seen: dict[DedupeKey, RawMessage] = {}
     duplicate_keys: set[DedupeKey] = set()
@@ -64,6 +67,7 @@ def dedupe_messages(
 
     report = DedupeReport(
         source_file=source_file,
+        group_name=group_name,
         total_messages=len(messages),
         deduped_messages=len(deduped_messages),
         duplicate_messages=len(duplicate_records),
